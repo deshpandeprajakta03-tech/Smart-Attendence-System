@@ -1,0 +1,23 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# Python scripts
+*.py text eol=lf
+
+# CSV data files
+*.csv text
+
+# Image files (binary)
+*.jpg binary
+*.png binary
+
+# Ignore metadata diffs for notebooks (if used)
+*.ipynb text
+
+# Gradio cache files (optional)
+*.gradio/ binary
+
+# Git LFS (optional if you're using large images or datasets)
+# Uncomment the following if you're using Git LFS
+# *.jpg filter=lfs diff=lfs merge=lfs -text
+# *.csv filter=lfs diff=lfs merge=lfs -text

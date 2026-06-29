@@ -1,0 +1,7 @@
+gradio
+opencv-python
+pandas
+numpy
+git+https://github.com/davisking/dlib.git
+face-recognition==1.3.0
+--extra-index-url https://pypi.doubanio.com/simple
