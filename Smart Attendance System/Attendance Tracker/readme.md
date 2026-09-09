@@ -1,121 +1,133 @@
----
-title: Attendance Tracker
-emoji: 🐠
-colorFrom: yellow
-colorTo: green
-sdk: gradio
-sdk_version: 5.30.0
-app_file: app.py
-pinned: false
-license: mit
-short_description: Smart Face Recognition Attendance System
+# 🧠 Smart Face Recognition Attendance System
+
+A contactless, real-time attendance system that uses face recognition to automatically mark student login and logoff with timestamps — no manual entry, no ID cards needed.
+
 ---
 
+## 📸 Demo
 
-# Face Recognition Attendance System
-
-A seamless and intelligent face recognition-based attendance system built using Python, OpenCV, and deep learning techniques. Designed for automation and accuracy, this application allows real-time detection and recognition of faces, logging attendance efficiently. It is deployable on platforms like Hugging Face Spaces using Gradio for a smooth web interface.
+> Open the app → Capture your face → Click Log In ✅  
+> Your attendance is marked instantly with time and duration.
 
 ---
 
 ## 🚀 Features
 
-* 🎯 Real-time face detection and recognition
-* 📝 Automatic attendance marking with timestamps
-* 📦 User-friendly interface with Gradio
-* 🧠 Uses deep learning-based face encodings
-* 💾 Attendance data stored in CSV format
-* ☁️ Deployable on Hugging Face Spaces (no local setup required)
+- 📷 Real-time face recognition via webcam
+- ✅ Login & 📤 Logoff with automatic duration calculation
+- 📊 Attendance log viewer with CSV download
+- 🛠️ Admin panel to add or remove students dynamically
+- ❌ Unrecognized face snapshots saved automatically
+- 🌐 Web-based UI — runs in browser, no desktop app needed
 
 ---
 
-## 🛠️ Technologies Used
+## 🛠️ Tech Stack
 
-* Python
-* OpenCV
-* NumPy
-* Gradio
-* face\_recognition (dlib)
-* Pandas
+| Technology | Purpose |
+|---|---|
+| Python 3.12 | Core language |
+| DeepFace (Facenet) | Face recognition model |
+| OpenCV | Image capture & processing |
+| Gradio | Web UI |
+| Pandas | Attendance CSV management |
+| NumPy | Image array handling |
+
+---
+
+## ⚙️ Installation & Setup
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/deshpandeprajakta03-tech/Smart-Attendence-System.git
+cd Smart-Attendence-System/Smart\ Attendance\ System/Attendance\ Tracker
+```
+
+### 2. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Run the app
+```bash
+python app.py
+```
+
+### 4. Open in browser
+```
+http://127.0.0.1:7860
+```
+
+> ⚠️ First run will download the Facenet model (~96MB). This is a one-time download.
 
 ---
 
 ## 📂 Project Structure
 
 ```
-FACE_ATTENDANCE/
-├── app.py                 # Main Gradio app
-├── attendance.csv         # Auto-generated attendance log
-├── Students/                # Folder containing images of known individuals
-├── requirements.txt       # Python dependencies
-└── README.md              # Project documentation
+Attendance Tracker/
+├── app.py                  # Main Gradio application
+├── students/               # Student face images (jpg/png/jpeg)
+├── attendance.csv          # Auto-generated attendance log
+├── unrecognized_faces/     # Snapshots of unrecognized faces
+├── requirements.txt        # Python dependencies
+└── README.md
 ```
 
 ---
 
-## ⚙️ Installation
+## 🖥️ How It Works
 
-1. **Clone the Repository**
+1. Student face images are stored in the `students/` folder
+2. When a student clicks **Log In**, webcam captures their face
+3. DeepFace compares the captured face against all stored student images using the **Facenet** deep learning model
+4. If matched → attendance is marked in `attendance.csv` with name, date, login time
+5. When they click **Log Off** → logoff time and total duration are recorded
+6. If face is not recognized → snapshot is saved to `unrecognized_faces/`
 
-```bash
-git clone https://github.com/yourusername/face-recognition-attendance.git
-cd face-recognition-attendance
+---
+
+## 📋 Attendance Log Format
+
+| Name | Date | Login Time | Logoff Time | Duration |
+|---|---|---|---|---|
+| Prajakta Deshpande | 2026-01-01 | 09:00:00 | 17:00:00 | 8h 0m |
+
+---
+
+## 🛠️ Admin Panel
+
+- **Add Student** — Enter name + capture face via webcam → saved to `students/` folder
+- **Remove Student** — Select from dropdown → removes image from system
+
+---
+
+## 📦 Requirements
+
 ```
-
-2. **Install Dependencies**
-
-```bash
-pip install -r requirements.txt
-```
-
-3. **Add Known Faces**
-   Place images of individuals in the `images/` folder. Filenames will be used as names in the attendance log.
-
-4. **Encode Faces**
-
-```bash
-python encode_faces.py
-```
-
-5. **Run the App**
-
-```bash
-python app.py
+gradio
+deepface
+tf-keras
+opencv-python
+numpy
+pandas
 ```
 
 ---
 
-## 🌐 Deployment on Hugging Face Spaces
+## 🔮 Future Improvements
 
-This application can be deployed using [Gradio](https://gradio.app/) on [Hugging Face Spaces](https://huggingface.co/spaces):
-
-1. Create a new Space using the "Gradio" SDK.
-2. Upload all project files including `app.py`, `functions.py`, `images/`, and `requirements.txt`.
-3. Ensure `app.py` runs the Gradio app as `gr.Interface(...)`.
-
----
-
-## 📈 Use Case Scenarios
-
-* Educational Institutions
-* Corporate Offices
-* Workshops and Events
-* Remote Team Check-ins
-
----
-
-## 📌 Future Improvements
-
-* Face registration via webcam
-* Admin dashboard
-* Integration with cloud databases
-* SMS/email notifications
+- Replace CSV with SQLite or Firebase database
+- Add anti-spoofing to prevent photo-based attacks
+- Email or SMS notification on attendance marked
+- Dashboard with attendance analytics and charts
+- Multi-camera support for large classrooms
 
 ---
 
 ## 🤝 Contributing
 
-Pull requests are welcome. For major changes, please open an issue first to discuss the proposed changes.
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
 ---
 
@@ -125,9 +137,8 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
+## 👩‍💻 Developer
 
-## 📬 Contact
-
-Developed by \[Amitha]
-📧 Email: [amitharajakumar1979@gmail.com](mailto:amitharajakumar1979@gmail.com)
-🌐 GitHub: [Amitha07amy](https://github.com/Amitha07amy)
+**Prajakta Deshpande**  
+📧 [deshpandeprajakta03@gmail.com](mailto:deshpandeprajakta03@gmail.com)  
+🌐 [GitHub](https://github.com/deshpandeprajakta03-tech)
