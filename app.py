@@ -8,38 +8,55 @@ from datetime import datetime
 from deepface import DeepFace
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-STUDENTS_DIR = "students"
+STUDENTS_DIR    = "students"
 UNRECOGNIZED_DIR = "unrecognized_faces"
-ATTENDANCE_CSV = "attendance.csv"
+ATTENDANCE_CSV  = "attendance.csv"
+COLUMNS = ["Name", "Date", "Login Time", "Logoff Time", "Duration"]
 
 os.makedirs(STUDENTS_DIR, exist_ok=True)
 os.makedirs(UNRECOGNIZED_DIR, exist_ok=True)
 
-COLUMNS = ["Name", "Date", "Login Time", "Logoff Time", "Duration"]
-
 
 # ── CSV helpers ────────────────────────────────────────────────────────────────
 
-def load_attendance() -> pd.DataFrame:
-    if os.path.exists(ATTENDANCE_CSV):
-        try:
-            df = pd.read_csv(ATTENDANCE_CSV)
-            for col in COLUMNS:
-                if col not in df.columns:
-                    df[col] = ""
-            return df[COLUMNS]
-        except (pd.errors.EmptyDataError, Exception):
-            pass
-    return pd.DataFrame(columns=COLUMNS)
+def load_rows() -> list:
+    """Load attendance CSV as a list of dicts (all values are strings)."""
+    if not os.path.exists(ATTENDANCE_CSV):
+        return []
+    try:
+        df = pd.read_csv(ATTENDANCE_CSV, dtype=str)
+        df = df.fillna("")
+        # Keep only known columns, add missing ones
+        for col in COLUMNS:
+            if col not in df.columns:
+                df[col] = ""
+        return df[COLUMNS].to_dict(orient="records")
+    except Exception:
+        return []
 
 
-def save_attendance(df: pd.DataFrame):
+def save_rows(rows: list):
+    """Save list of dicts back to CSV."""
+    df = pd.DataFrame(rows, columns=COLUMNS)
     df.to_csv(ATTENDANCE_CSV, index=False)
 
 
-# Ensure CSV always has a valid header
-if not os.path.exists(ATTENDANCE_CSV) or os.path.getsize(ATTENDANCE_CSV) == 0:
-    save_attendance(pd.DataFrame(columns=COLUMNS))
+def rows_to_df(rows: list) -> pd.DataFrame:
+    """Convert rows list to a clean string DataFrame for display."""
+    if not rows:
+        return pd.DataFrame(columns=COLUMNS)
+    df = pd.DataFrame(rows, columns=COLUMNS)
+    return df.fillna("").astype(str)
+
+
+def load_attendance() -> pd.DataFrame:
+    return rows_to_df(load_rows())
+
+
+def get_csv_path() -> str:
+    if not os.path.exists(ATTENDANCE_CSV):
+        save_rows([])
+    return ATTENDANCE_CSV
 
 
 # ── Student helpers ────────────────────────────────────────────────────────────
@@ -65,7 +82,7 @@ def get_student_list() -> list:
 # ── Face recognition ───────────────────────────────────────────────────────────
 
 def recognize_face(img_array: np.ndarray):
-    """Returns student name string on match, None otherwise."""
+    """Returns student name on match, None otherwise."""
     student_imgs = get_student_images()
     if not student_imgs:
         return None
@@ -89,7 +106,7 @@ def recognize_face(img_array: np.ndarray):
         except Exception:
             continue
 
-    # Save unrecognized snapshot
+    # Not recognized — save snapshot
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     dest = os.path.join(UNRECOGNIZED_DIR, f"unrecognized_{ts}.jpg")
     if os.path.exists(tmp_path):
@@ -101,81 +118,73 @@ def recognize_face(img_array: np.ndarray):
 
 def login(img):
     if img is None:
-        return "⚠️ No image captured. Please allow webcam access and capture a photo.", load_attendance()
+        return "⚠️ No image captured. Please capture a photo first.", load_attendance()
 
     name = recognize_face(img)
     if name is None:
         return "❌ Face not recognized. Snapshot saved to unrecognized_faces/.", load_attendance()
 
-    df = load_attendance()
+    rows  = load_rows()
     today = datetime.now().strftime("%Y-%m-%d")
-    now_time = datetime.now().strftime("%H:%M:%S")
+    now   = datetime.now().strftime("%H:%M:%S")
 
-    mask = (
-        (df["Name"] == name) &
-        (df["Date"] == today) &
-        (df["Logoff Time"].isna() | (df["Logoff Time"] == ""))
-    )
-    if mask.any():
-        return f"ℹ️ {name} is already logged in today.", df
+    # Check for existing open session today
+    for row in rows:
+        if row["Name"] == name and row["Date"] == today and row["Logoff Time"] == "":
+            return f"ℹ️ {name} is already logged in today.", rows_to_df(rows)
 
-    new_row = pd.DataFrame([{
-        "Name": name,
-        "Date": today,
-        "Login Time": now_time,
+    rows.append({
+        "Name":        name,
+        "Date":        today,
+        "Login Time":  now,
         "Logoff Time": "",
-        "Duration": "",
-    }])
-    df = pd.concat([df, new_row], ignore_index=True)
-    save_attendance(df)
-    return f"✅ Login recorded for {name} at {now_time}.", df
+        "Duration":    "",
+    })
+    save_rows(rows)
+    return f"✅ Login recorded for {name} at {now}.", rows_to_df(rows)
 
 
 def logoff(img):
     if img is None:
-        return "⚠️ No image captured. Please allow webcam access and capture a photo.", load_attendance()
+        return "⚠️ No image captured. Please capture a photo first.", load_attendance()
 
     name = recognize_face(img)
     if name is None:
         return "❌ Face not recognized. Snapshot saved to unrecognized_faces/.", load_attendance()
 
-    df = load_attendance()
+    rows  = load_rows()
     today = datetime.now().strftime("%Y-%m-%d")
-    now_str = datetime.now().strftime("%H:%M:%S")
+    now   = datetime.now().strftime("%H:%M:%S")
 
-    mask = (
-        (df["Name"] == name) &
-        (df["Date"] == today) &
-        (df["Logoff Time"].isna() | (df["Logoff Time"] == ""))
-    )
-    if not mask.any():
-        return f"ℹ️ {name} has no active login session today.", df
+    # Find last open session for this person today
+    target_idx = None
+    for i, row in enumerate(rows):
+        if row["Name"] == name and row["Date"] == today and row["Logoff Time"] == "":
+            target_idx = i
 
-    idx = df[mask].index[-1]
-    df.at[idx, "Logoff Time"] = now_str
+    if target_idx is None:
+        return f"ℹ️ {name} has no active login session today.", rows_to_df(rows)
 
+    rows[target_idx]["Logoff Time"] = now
+
+    # Calculate duration
     try:
-        fmt = "%H:%M:%S"
-        login_dt = datetime.strptime(df.at[idx, "Login Time"], fmt)
-        logoff_dt = datetime.strptime(now_str, fmt)
-        delta = logoff_dt - login_dt
-        h, m = divmod(int(delta.total_seconds() // 60), 60)
-        df.at[idx, "Duration"] = f"{h}h {m}m"
+        fmt      = "%H:%M:%S"
+        login_dt = datetime.strptime(rows[target_idx]["Login Time"], fmt)
+        logoff_dt = datetime.strptime(now, fmt)
+        delta    = logoff_dt - login_dt
+        h, m     = divmod(int(delta.total_seconds() // 60), 60)
+        rows[target_idx]["Duration"] = f"{h}h {m}m"
     except Exception:
-        df.at[idx, "Duration"] = "N/A"
+        rows[target_idx]["Duration"] = "N/A"
 
-    save_attendance(df)
-    return f"📤 Logoff recorded for {name} at {now_str}. Duration: {df.at[idx, 'Duration']}.", df
+    save_rows(rows)
+    duration = rows[target_idx]["Duration"]
+    return f"📤 Logoff recorded for {name} at {now}. Duration: {duration}.", rows_to_df(rows)
 
 
 def refresh_log():
     return load_attendance()
-
-
-def get_csv_path():
-    if not os.path.exists(ATTENDANCE_CSV) or os.path.getsize(ATTENDANCE_CSV) == 0:
-        save_attendance(pd.DataFrame(columns=COLUMNS))
-    return ATTENDANCE_CSV
 
 
 # ── Admin actions ──────────────────────────────────────────────────────────────
@@ -185,7 +194,7 @@ def add_student(name: str, img):
     if not name:
         return "⚠️ Please enter a student name.", gr.Dropdown(choices=get_student_list())
     if img is None:
-        return "⚠️ No image captured. Please allow webcam access.", gr.Dropdown(choices=get_student_list())
+        return "⚠️ No image captured.", gr.Dropdown(choices=get_student_list())
 
     safe_name = "".join(c for c in name if c.isalnum() or c in " _-").strip()
     if not safe_name:
@@ -245,14 +254,13 @@ with gr.Blocks(title="Smart Attendance System", theme=gr.themes.Soft()) as demo:
                 btn_refresh  = gr.Button("🔄 Refresh Log")
                 btn_download = gr.DownloadButton("⬇️ Download CSV", value=get_csv_path())
 
-            btn_login.click(fn=login,   inputs=webcam, outputs=[status_box, attendance_table])
-            btn_logoff.click(fn=logoff, inputs=webcam, outputs=[status_box, attendance_table])
+            btn_login.click(fn=login,       inputs=webcam, outputs=[status_box, attendance_table])
+            btn_logoff.click(fn=logoff,     inputs=webcam, outputs=[status_box, attendance_table])
             btn_refresh.click(fn=refresh_log, outputs=attendance_table)
 
         # ── Tab 2: Full Log ────────────────────────────────────────────────────
         with gr.Tab("📊 Full Attendance Log"):
             gr.Markdown("### Complete attendance history")
-
             full_table = gr.Dataframe(
                 value=load_attendance(),
                 headers=COLUMNS,
